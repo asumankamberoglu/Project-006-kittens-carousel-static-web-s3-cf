@@ -66,7 +66,7 @@ Resources:
         Aliases: #alternate domain names yani sub domaini yazacağız.
         - !Ref KittensDomainName
         Comment: Cloudfront Distribution pointing to Kittens S3 bucket
-        DefaultCacheBehavior:  #projede get ve head e izin vermemizi söylüyor.
+        DefaultCacheBehavior:  #projede get ve head e izin vermemizi söylüyor. https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-cloudfront-distribution-defaultcachebehavior.html
           AllowedMethods:  #izin verilen methodlar
             - GET
             - HEAD
@@ -80,8 +80,8 @@ Resources:
         DefaultRootObject: index.html
         Enabled: true #status check 
         HttpVersion: 'http2'
-        Origins: 
-        - DomainName: !Select [2, !Split ["/", !GetAtt KittensBucket.WebsiteURL]] 
+        Origins: #https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/distribution-web-values-specify.html#DownloadDistValuesDomainName
+        - DomainName: !Select [2, !Split ["/", !GetAtt KittensBucket.WebsiteURL]] #http den ayır ikinci kısmı döndür. https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/intrinsic-function-reference-select.html
           Id: KittensOrigin
           CustomOriginConfig: 
             OriginProtocolPolicy: http-only #https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-cloudfront-distribution-customoriginconfig.html#cfn-cloudfront-distribution-customoriginconfig-originprotocolpolicy
