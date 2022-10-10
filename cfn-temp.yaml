@@ -1,0 +1,127 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: |
+  website deployed on aws cloudfront,s3,route53 using cloudformation
+
+Parameters:
+  DomainName:
+    Description: DNS Name of Amazon Route53 hosted zone
+    Type: AWS::Route53::HostedZone::Id
+  
+  myAppFullDomainName:
+    Description: Full Domain Name for app 
+    Type: String
+  
+
+Resources:
+  myS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref myAppFullDomainName
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false 
+      VersioningConfiguration:
+        Status: Enabled
+      WebsiteConfiguration:
+        IndexDocument: index.html
+
+  myS3Policy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref myS3Bucket # Required
+      PolicyDocument: # Required
+        Version: 2012-10-17
+        Statement:
+        - Action:
+            - 's3:GetObject'
+          Effect: Allow
+          Resource: !Join
+            - ''
+            - - 'arn:aws:s3:::'
+              - !Ref myS3Bucket
+              - /*
+          Principal: '*'
+          Sid: PublicReadGetObject
+
+  myCertificate:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: !Ref myAppFullDomainName # Required
+      DomainValidationOptions:
+        - DomainName: !Ref myAppFullDomainName 
+          HostedZoneId: !Ref DomainName
+      ValidationMethod: DNS
+
+
+  myCloudFront:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Aliases:
+          - !Ref myAppFullDomainName
+        Comment: Cloudfront Distribution pointing to Kittens S3 bucket
+        DefaultCacheBehavior:
+          AllowedMethods: 
+            - GET 
+            - HEAD
+          Compress: true
+          ViewerProtocolPolicy: allow-all #redirect-to-https
+          TargetOriginId: kittenOrigin
+          ForwardedValues:
+            QueryString: true
+            Cookies:
+              Forward: none
+        DefaultRootObject: index.html
+        Enabled: true
+        HttpVersion: http2
+        PriceClass: PriceClass_All
+        Origins:
+          - DomainName: !Select [2, !Split ["/",!GetAtt myS3Bucket.WebsiteURL]] 
+            Id: kittenOrigin
+            CustomOriginConfig: 
+              OriginProtocolPolicy: http-only
+        ViewerCertificate:
+          AcmCertificateArn: !Ref myCertificate # Amazon Resource Name (ARN) 
+          SslSupportMethod: sni-only
+
+  myRoute53:
+    Type: AWS::Route53::RecordSetGroup
+    Properties:
+      Comment: new route53 hosted zone
+      HostedZoneId: !Ref DomainName
+      RecordSets:
+        - Name: !Ref myAppFullDomainName # Required
+          Type: A # Required
+          AliasTarget:
+            DNSName: !GetAtt myCloudFront.DomainName
+            HostedZoneId: Z2FDTNDATAQYW2
+
+
+Outputs:
+  WebsiteURL:
+    Value: !GetAtt  #farklı kullanım metodu myS3Bucket.WebsiteURL
+      - myS3Bucket
+      - WebsiteURL
+    Description: S3-Bucket website endpoint URL 
+  
+  # S3BucketSecureURL:
+  #   Value: !Join
+  #     - ''
+  #     - - 'https://'
+  #       - !GetAtt
+  #         - myS3Bucket
+  #         - DomainName
+  #   Description: Name of S3 bucket to hold website content
+  
+  FullDN:
+    Value: !Ref myAppFullDomainName
+    Description: FullDomainName URL of myApp
+
+  CloudFrontEndPoint:
+    Value: !GetAtt myCloudFront.DomainName
+    Description: EndPoint of CloudFront
+
+    
+  
